@@ -1,0 +1,23 @@
+import mongoose, { Schema, Document } from 'mongoose'
+
+export type UserRole = 'superadmin' | 'admin'
+
+export interface IUser extends Document {
+  email: string
+  passwordHash: string
+  role: UserRole
+  companyId?: mongoose.Types.ObjectId
+  createdAt: Date
+}
+
+const UserSchema = new Schema<IUser>(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true },
+    role: { type: String, enum: ['superadmin', 'admin'], required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+)
+
+export const User = mongoose.model<IUser>('User', UserSchema)
