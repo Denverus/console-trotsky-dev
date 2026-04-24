@@ -9,12 +9,23 @@ interface AuthResult {
   user: { id: string; email: string; role: string }
 }
 
-export async function registerUser(email: string, password: string): Promise<AuthResult> {
+export async function registerUser(
+  email: string,
+  password: string,
+  firstName?: string,
+  lastName?: string,
+): Promise<AuthResult> {
   const existing = await User.findOne({ email: email.toLowerCase() })
   if (existing) throw new Error('Email already registered')
 
   const passwordHash = await bcrypt.hash(password, 12)
-  const user = await User.create({ email: email.toLowerCase(), passwordHash, role: 'admin' })
+  const user = await User.create({
+    email: email.toLowerCase(),
+    passwordHash,
+    role: 'admin',
+    ...(firstName && { firstName }),
+    ...(lastName && { lastName }),
+  })
 
   return buildAuthResult(user)
 }
@@ -25,6 +36,8 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) throw new Error('Invalid credentials')
+
+  await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() })
 
   return buildAuthResult(user)
 }

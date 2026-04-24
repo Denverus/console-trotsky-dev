@@ -11,7 +11,7 @@ const COOKIE_OPTS = {
 }
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: { email: string; password: string } }>(
+  fastify.post<{ Body: { email: string; password: string; firstName?: string; lastName?: string } }>(
     '/register',
     {
       schema: {
@@ -21,6 +21,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           properties: {
             email: { type: 'string', format: 'email' },
             password: { type: 'string', minLength: 8 },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
           },
         },
       },
@@ -30,6 +32,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         const { accessToken, refreshToken, user } = await registerUser(
           request.body.email,
           request.body.password,
+          request.body.firstName,
+          request.body.lastName,
         )
         reply.setCookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTS)
         return reply.status(201).send({ accessToken, user })

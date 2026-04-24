@@ -7,6 +7,9 @@ export interface IUser extends Document {
   passwordHash: string
   role: UserRole
   companyId?: mongoose.Types.ObjectId
+  firstName?: string
+  lastName?: string
+  lastLoginAt?: Date
   createdAt: Date
 }
 
@@ -16,6 +19,9 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['superadmin', 'admin'], required: true },
     companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
+    firstName: { type: String, trim: true },
+    lastName: { type: String, trim: true },
+    lastLoginAt: { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 )
