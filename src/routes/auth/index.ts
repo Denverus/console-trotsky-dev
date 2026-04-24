@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { registerUser, loginUser, refreshAccessToken } from './auth.service'
+import { getAppConfig } from '../config/config.service'
 
 const REFRESH_COOKIE = 'refreshToken'
 const COOKIE_OPTS = {
@@ -28,6 +29,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
+      const cfg = await getAppConfig()
+      if (!cfg.registrationEnabled) {
+        return reply.status(403).send({ error: 'Registration is currently disabled' })
+      }
       try {
         const { accessToken, refreshToken, user } = await registerUser(
           request.body.email,

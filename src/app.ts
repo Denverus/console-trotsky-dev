@@ -6,6 +6,7 @@ import healthRoute from './routes/health'
 import authRoutes from './routes/auth'
 import companiesRoutes from './routes/companies'
 import usersRoutes from './routes/users'
+import configRoutes from './routes/config'
 import { config } from './config'
 
 export async function buildApp() {
@@ -21,6 +22,7 @@ export async function buildApp() {
   await fastify.register(authRoutes, { prefix: '/api/auth' })
   await fastify.register(companiesRoutes, { prefix: '/api/companies' })
   await fastify.register(usersRoutes, { prefix: '/api/users' })
+  await fastify.register(configRoutes, { prefix: '/api/config' })
 
   return fastify
 }
