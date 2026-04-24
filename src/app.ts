@@ -5,6 +5,7 @@ import mongoPlugin from './plugins/mongo'
 import healthRoute from './routes/health'
 import authRoutes from './routes/auth'
 import companiesRoutes from './routes/companies'
+import usersRoutes from './routes/users'
 import { config } from './config'
 
 export async function buildApp() {
@@ -19,6 +20,7 @@ export async function buildApp() {
   await fastify.register(healthRoute)
   await fastify.register(authRoutes, { prefix: '/api/auth' })
   await fastify.register(companiesRoutes, { prefix: '/api/companies' })
+  await fastify.register(usersRoutes, { prefix: '/api/users' })
 
   return fastify
 }
