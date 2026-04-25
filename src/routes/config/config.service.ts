@@ -1,7 +1,7 @@
 import { AppConfig, IAppConfig } from '../../models/app-config.model'
 
 const SINGLETON_FILTER = { _key: 'singleton' }
-const DEFAULT_CONFIG = { registrationEnabled: true }
+const DEFAULT_CONFIG = { registrationEnabled: true, createUsersAsInactive: false }
 
 export async function getAppConfig(): Promise<IAppConfig> {
   const doc = await AppConfig.findOneAndUpdate(

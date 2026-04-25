@@ -3,6 +3,10 @@ import jwt from 'jsonwebtoken'
 import { User, IUser } from '../../models/user.model'
 import { config } from '../../config'
 
+export class InactiveAccountError extends Error {
+  constructor() { super('Your account is currently inactive') }
+}
+
 interface AuthResult {
   accessToken: string
   refreshToken: string
@@ -14,7 +18,8 @@ export async function registerUser(
   password: string,
   firstName?: string,
   lastName?: string,
-): Promise<AuthResult> {
+  isActive = true,
+): Promise<AuthResult | { pending: true }> {
   const existing = await User.findOne({ email: email.toLowerCase() })
   if (existing) throw new Error('Email already registered')
 
@@ -23,10 +28,12 @@ export async function registerUser(
     email: email.toLowerCase(),
     passwordHash,
     role: 'admin',
+    isActive,
     ...(firstName && { firstName }),
     ...(lastName && { lastName }),
   })
 
+  if (!isActive) return { pending: true }
   return buildAuthResult(user)
 }
 
@@ -36,6 +43,8 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) throw new Error('Invalid credentials')
+
+  if (!user.isActive) throw new InactiveAccountError()
 
   await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() })
 

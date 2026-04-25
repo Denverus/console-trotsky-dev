@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { registerUser, loginUser, refreshAccessToken } from './auth.service'
+import { registerUser, loginUser, refreshAccessToken, InactiveAccountError } from './auth.service'
 import { getAppConfig } from '../config/config.service'
 
 const REFRESH_COOKIE = 'refreshToken'
@@ -34,14 +34,21 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: 'Registration is currently disabled' })
       }
       try {
-        const { accessToken, refreshToken, user } = await registerUser(
+        const result = await registerUser(
           request.body.email,
           request.body.password,
           request.body.firstName,
           request.body.lastName,
+          !cfg.createUsersAsInactive,
         )
-        reply.setCookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTS)
-        return reply.status(201).send({ accessToken, user })
+        if ('pending' in result) {
+          return reply.status(201).send({
+            pending: true,
+            message: 'Thank you for interest to our product. We will let you know once your account approved.',
+          })
+        }
+        reply.setCookie(REFRESH_COOKIE, result.refreshToken, COOKIE_OPTS)
+        return reply.status(201).send({ accessToken: result.accessToken, user: result.user })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Registration failed'
         return reply.status(409).send({ error: message })
@@ -71,7 +78,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         )
         reply.setCookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTS)
         return reply.send({ accessToken, user })
-      } catch {
+      } catch (err) {
+        if (err instanceof InactiveAccountError) {
+          return reply.status(403).send({ error: err.message })
+        }
         return reply.status(401).send({ error: 'Invalid credentials' })
       }
     },

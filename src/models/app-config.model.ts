@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface IAppConfig extends Document {
   _key: 'singleton'
   registrationEnabled: boolean
+  createUsersAsInactive: boolean
   updatedAt: Date
 }
 
@@ -10,6 +11,7 @@ const AppConfigSchema = new Schema<IAppConfig>(
   {
     _key: { type: String, default: 'singleton', immutable: true },
     registrationEnabled: { type: Boolean, default: true },
+    createUsersAsInactive: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: false, updatedAt: true } },
 )
