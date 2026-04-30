@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx seed/index.ts",
+    "migrate:name-keys": "tsx src/migrations/2026-04-29-name-existing-keys.ts",
     "lint": "eslint src seed"
   },
   "engines": {

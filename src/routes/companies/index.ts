@@ -8,8 +8,9 @@ import {
   getCompany,
   assignService,
   listServices,
-  revokeService,
-  regenerateService,
+  renameService,
+  revokeServiceById,
+  regenerateServiceById,
 } from './companies.service'
 
 const companiesRoutes: FastifyPluginAsync = async (fastify) => {
@@ -55,22 +56,23 @@ const companiesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.post<{ Params: { id: string }; Body: { serviceId: ServiceId } }>(
+  fastify.post<{ Params: { id: string }; Body: { serviceId: ServiceId; name: string } }>(
     '/:id/services',
     {
       schema: {
         body: {
           type: 'object',
-          required: ['serviceId'],
+          required: ['serviceId', 'name'],
           properties: {
             serviceId: { type: 'string', enum: ['analytics', 'payments', 'email', 'logs'] },
+            name: { type: 'string', minLength: 1, maxLength: 64 },
           },
         },
       },
     },
     async (request, reply) => {
       try {
-        const result = await assignService(request.params.id, request.body.serviceId)
+        const result = await assignService(request.params.id, request.body.serviceId, request.body.name)
         return reply.status(201).send(result)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to assign service'
@@ -88,28 +90,61 @@ const companiesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.delete<{ Params: { id: string; serviceId: ServiceId } }>(
-    '/:id/services/:serviceId',
+  fastify.patch<{ Params: { id: string; keyId: string }; Body: { name: string } }>(
+    '/:id/services/:keyId',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 64 },
+          },
+        },
+      },
+    },
     async (request, reply) => {
       try {
-        await revokeService(request.params.id, request.params.serviceId)
-        return reply.send({ ok: true })
+        const service = await renameService(request.params.id, request.params.keyId, request.body.name)
+        return reply.send({
+          _id: service._id.toString(),
+          serviceId: service.serviceId,
+          name: service.name,
+          createdAt: service.createdAt,
+          revokedAt: service.revokedAt,
+        })
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to revoke service'
-        return reply.status(404).send({ error: message })
+        const message = err instanceof Error ? err.message : 'Failed to rename service'
+        const status = message === 'Service not found' || message === 'Invalid key id' ? 404 : 409
+        return reply.status(status).send({ error: message })
       }
     },
   )
 
-  fastify.post<{ Params: { id: string; serviceId: ServiceId } }>(
-    '/:id/services/:serviceId/regenerate',
+  fastify.delete<{ Params: { id: string; keyId: string } }>(
+    '/:id/services/:keyId',
     async (request, reply) => {
       try {
-        const result = await regenerateService(request.params.id, request.params.serviceId)
+        await revokeServiceById(request.params.id, request.params.keyId)
+        return reply.send({ ok: true })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to revoke service'
+        const status = message === 'Service not found' || message === 'Invalid key id' ? 404 : 409
+        return reply.status(status).send({ error: message })
+      }
+    },
+  )
+
+  fastify.post<{ Params: { id: string; keyId: string } }>(
+    '/:id/services/:keyId/regenerate',
+    async (request, reply) => {
+      try {
+        const result = await regenerateServiceById(request.params.id, request.params.keyId)
         return reply.send(result)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to regenerate key'
-        return reply.status(404).send({ error: message })
+        const status = message === 'Service not found' || message === 'Invalid key id' ? 404 : 409
+        return reply.status(status).send({ error: message })
       }
     },
   )
