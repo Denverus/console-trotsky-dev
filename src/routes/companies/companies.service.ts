@@ -79,6 +79,50 @@ async function getKeyForCompany(companyId: string, keyId: string): Promise<IApiK
   return key
 }
 
+const MAX_ALLOWED_ORIGINS = 32
+
+function validateOrigin(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) throw new Error('Origin cannot be empty')
+  let url: URL
+  try {
+    url = new URL(trimmed)
+  } catch {
+    throw new Error(`Invalid origin "${trimmed}" — must be a URL like https://example.com`)
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`Invalid origin "${trimmed}" — only http and https are allowed`)
+  }
+  if (url.origin !== trimmed) {
+    throw new Error(`Invalid origin "${trimmed}" — must have no path, query, or trailing slash (try "${url.origin}")`)
+  }
+  return url.origin
+}
+
+export async function updateAllowedOrigins(
+  companyId: string,
+  keyId: string,
+  origins: string[],
+): Promise<IApiKey> {
+  const key = await getKeyForCompany(companyId, keyId)
+  if (!Array.isArray(origins)) throw new Error('allowedOrigins must be an array')
+  if (origins.length > MAX_ALLOWED_ORIGINS) {
+    throw new Error(`At most ${MAX_ALLOWED_ORIGINS} origins are allowed`)
+  }
+  const seen = new Set<string>()
+  const cleaned: string[] = []
+  for (const o of origins) {
+    if (typeof o !== 'string') throw new Error('Each origin must be a string')
+    const valid = validateOrigin(o)
+    if (seen.has(valid)) continue
+    seen.add(valid)
+    cleaned.push(valid)
+  }
+  key.allowedOrigins = cleaned
+  await key.save()
+  return key
+}
+
 export async function renameService(companyId: string, keyId: string, name: string): Promise<IApiKey> {
   const key = await getKeyForCompany(companyId, keyId)
   const trimmed = normalizeName(name)

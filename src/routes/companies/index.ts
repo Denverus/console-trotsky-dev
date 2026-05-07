@@ -11,7 +11,20 @@ import {
   renameService,
   revokeServiceById,
   regenerateServiceById,
+  updateAllowedOrigins,
 } from './companies.service'
+import { IApiKey } from '../../models/api-key.model'
+
+function serializeApiKey(key: IApiKey) {
+  return {
+    _id: key._id.toString(),
+    serviceId: key.serviceId,
+    name: key.name,
+    allowedOrigins: key.allowedOrigins ?? [],
+    createdAt: key.createdAt,
+    revokedAt: key.revokedAt,
+  }
+}
 
 const companiesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', requireSuperAdmin)
@@ -84,37 +97,52 @@ const companiesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { id: string } }>('/:id/services', async (request, reply) => {
     try {
       const services = await listServices(request.params.id)
-      return reply.send({ services })
+      return reply.send({ services: services.map(serializeApiKey) })
     } catch {
       return reply.status(404).send({ error: 'Company not found' })
     }
   })
 
-  fastify.patch<{ Params: { id: string; keyId: string }; Body: { name: string } }>(
+  fastify.patch<{
+    Params: { id: string; keyId: string }
+    Body: { name?: string; allowedOrigins?: string[] }
+  }>(
     '/:id/services/:keyId',
     {
       schema: {
         body: {
           type: 'object',
-          required: ['name'],
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 64 },
+            allowedOrigins: {
+              type: 'array',
+              items: { type: 'string', minLength: 1 },
+              maxItems: 32,
+            },
           },
+          anyOf: [{ required: ['name'] }, { required: ['allowedOrigins'] }],
         },
       },
     },
     async (request, reply) => {
       try {
-        const service = await renameService(request.params.id, request.params.keyId, request.body.name)
-        return reply.send({
-          _id: service._id.toString(),
-          serviceId: service.serviceId,
-          name: service.name,
-          createdAt: service.createdAt,
-          revokedAt: service.revokedAt,
-        })
+        let service: IApiKey | undefined
+        if (request.body.name !== undefined) {
+          service = await renameService(request.params.id, request.params.keyId, request.body.name)
+        }
+        if (request.body.allowedOrigins !== undefined) {
+          service = await updateAllowedOrigins(
+            request.params.id,
+            request.params.keyId,
+            request.body.allowedOrigins,
+          )
+        }
+        if (!service) {
+          return reply.status(400).send({ error: 'No fields to update' })
+        }
+        return reply.send(serializeApiKey(service))
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to rename service'
+        const message = err instanceof Error ? err.message : 'Failed to update service'
         const status = message === 'Service not found' || message === 'Invalid key id' ? 404 : 409
         return reply.status(status).send({ error: message })
       }
